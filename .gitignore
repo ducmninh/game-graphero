@@ -1,0 +1,20 @@
+# PyInstaller / Build
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Game Save Data
+save.json
+
+# Backup/Temp
+.tempmediaStorage/
+brain/
+temp_sniper.wav
+z7838*.jpg
+z7838*.png
