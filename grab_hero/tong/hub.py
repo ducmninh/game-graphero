@@ -28,6 +28,16 @@ from settings import (
 # Cached preview sprites (loaded on first access)
 _gun_previews: dict = {}
 _grab_previews: dict = {}
+_pet_egg_previews: dict = {}
+
+
+def get_pet_egg_preview(key):
+    if key in _pet_egg_previews:
+        return _pet_egg_previews[key]
+    fname = f"pet_egg_{key}.png"
+    img = _load_preview(fname, 64)
+    _pet_egg_previews[key] = img
+    return img
 
 
 def _load_preview(filename, target_w):
@@ -304,15 +314,19 @@ class Hub:
 
     # ----------------------------------------------------------
     def _draw_row(self, surf, x, y, w, h, title, sub, right_text,
-                  selected, color, afford):
+                  selected, color, afford, img=None):
         r = pygame.Rect(x, y, w, h)
         bg = (60, 70, 64) if not selected else (80, 110, 90)
         pygame.draw.rect(surf, bg, r)
         border = GOLD if selected else (20, 30, 24)
         pygame.draw.rect(surf, border, r, 3 if selected else 2)
-        # color chip
-        pygame.draw.rect(surf, color, (x + 8, y + 12, 36, h - 24))
-        pygame.draw.rect(surf, (0, 0, 0), (x + 8, y + 12, 36, h - 24), 2)
+        # color chip or image
+        if img is not None:
+            scaled = pygame.transform.smoothscale(img, (36, h - 24))
+            surf.blit(scaled, (x + 8, y + 12))
+        else:
+            pygame.draw.rect(surf, color, (x + 8, y + 12, 36, h - 24))
+            pygame.draw.rect(surf, (0, 0, 0), (x + 8, y + 12, 36, h - 24), 2)
         draw_text(surf, title, (x + 60, y + 8), size=22,
                   bold=True, color=(255, 255, 255))
         draw_text(surf, sub, (x + 60, y + 38), size=15,
@@ -438,10 +452,11 @@ class Hub:
                 right = f"{spec['price']}$"
                 afford = self.save["gold"] >= spec["price"]
             sub = f"{spec['emoji']}  {spec['desc']}"
+            pimg = get_pet_egg_preview(key)
             self._draw_row(surf, panel.left + 24, y, panel.width - 48, 70,
                            spec["name"], sub, right,
                            selected=(self.row == i),
-                           color=spec["color"], afford=afford)
+                           color=spec["color"], afford=afford, img=pimg)
             y += 82
         # "Không dùng pet" row
         none_idx = len(PET_ORDER)
