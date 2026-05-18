@@ -335,6 +335,12 @@ class Game:
             self.handle_events()
             self.manage_bgm()
 
+            # Dynamic mouse pointer visibility
+            if self.scene == SCENE_PLAY and not (self.shop and self.shop.open):
+                pygame.mouse.set_visible(False)
+            else:
+                pygame.mouse.set_visible(True)
+
             # Unified Client scene & level synchronization
             if self.network.running and not self.network.is_host:
                 host_status = self.network.peer_data.get("host_status")
@@ -528,12 +534,12 @@ class Game:
                 # --- Mouse support ---
                 if event.type == pygame.MOUSEMOTION:
                     mx, my = event.pos
-                    pw, ph = 520, 415
+                    pw, ph = 520, 420
                     px = (SCREEN_WIDTH - pw) // 2
-                    py = 205
+                    py = 150
                     for i in range(7):
                         bx = px + 30
-                        by = py + 25 + i * 53
+                        by = py + 25 + i * 52
                         btn_rect = pygame.Rect(bx, by, pw - 60, 44)
                         if btn_rect.collidepoint(mx, my):
                             self.menu_row = i
@@ -544,12 +550,12 @@ class Game:
                         if gear_rect.collidepoint(mx, my):
                             self.scene = SCENE_SETTINGS
                         else:
-                            pw, ph = 520, 415
+                            pw, ph = 520, 420
                             px = (SCREEN_WIDTH - pw) // 2
-                            py = 205
+                            py = 150
                             for i in range(7):
                                 bx = px + 30
-                                by = py + 25 + i * 53
+                                by = py + 25 + i * 52
                                 btn_rect = pygame.Rect(bx, by, pw - 60, 44)
                                 if btn_rect.collidepoint(mx, my):
                                     self.menu_row = i
