@@ -8,8 +8,27 @@ import math
 import random
 import pygame
 from utils import Vec, clamp, vec_from_angle
-from settings import PETS
+from settings import PETS, SPRITES
 from weapons import Bullet
+
+
+_egg_sprites: dict = {}
+
+def get_egg_sprite(kind: str, size: int):
+    cache_key = (kind, size)
+    if cache_key in _egg_sprites:
+        return _egg_sprites[cache_key]
+    path = SPRITES / f"pet_egg_{kind}.png"
+    if path.exists():
+        try:
+            img = pygame.image.load(str(path)).convert_alpha()
+            # Scale to twice the size for perfect ingame scaling
+            img = pygame.transform.smoothscale(img, (size * 2, size * 2))
+            _egg_sprites[cache_key] = img
+            return img
+        except Exception as e:
+            print(f"DEBUG: Failed to load pet egg sprite: {e}")
+    return None
 
 
 class Pet:
@@ -156,16 +175,29 @@ class Pet:
         s = self.size
 
         # shadow
-        shadow = pygame.Surface((s + 8, (s // 3) + 4), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 90), shadow.get_rect())
-        surf.blit(shadow, (cx - shadow.get_width() // 2, cy + s // 3))
+        shadow = pygame.Surface((s * 2, s // 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 70), shadow.get_rect())
+        surf.blit(shadow, (cx - shadow.get_width() // 2, cy + s - 4))
 
-        if self.kind == "dog":
-            self._draw_dog(surf, cx, cy)
-        elif self.kind == "cat":
-            self._draw_cat(surf, cx, cy)
-        elif self.kind == "eagle":
-            self._draw_eagle(surf, cx, cy)
+        img = get_egg_sprite(self.kind, s)
+        if img is not None:
+            # Draw egg sprite centered
+            surf.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
+            
+            # AOE ring pulse for eagle when attacking soon
+            if self.kind == "eagle" and self.attack_cd < 0.12:
+                ring = pygame.Surface((self.attack_range * 2, self.attack_range * 2), pygame.SRCALPHA)
+                pygame.draw.circle(ring, (255, 200, 60, 55),
+                                   (self.attack_range, self.attack_range),
+                                   self.attack_range, 3)
+                surf.blit(ring, (cx - self.attack_range, cy - self.attack_range))
+        else:
+            if self.kind == "dog":
+                self._draw_dog(surf, cx, cy)
+            elif self.kind == "cat":
+                self._draw_cat(surf, cx, cy)
+            elif self.kind == "eagle":
+                self._draw_eagle(surf, cx, cy)
 
     def _draw_dog(self, surf, cx, cy):
         s = self.size
