@@ -175,29 +175,16 @@ class Pet:
         s = self.size
 
         # shadow
-        shadow = pygame.Surface((s * 2, s // 2), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 70), shadow.get_rect())
-        surf.blit(shadow, (cx - shadow.get_width() // 2, cy + s - 4))
+        shadow = pygame.Surface((s + 8, (s // 3) + 4), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 90), shadow.get_rect())
+        surf.blit(shadow, (cx - shadow.get_width() // 2, cy + s // 3))
 
-        img = get_egg_sprite(self.kind, s)
-        if img is not None:
-            # Draw egg sprite centered
-            surf.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
-            
-            # AOE ring pulse for eagle when attacking soon
-            if self.kind == "eagle" and self.attack_cd < 0.12:
-                ring = pygame.Surface((self.attack_range * 2, self.attack_range * 2), pygame.SRCALPHA)
-                pygame.draw.circle(ring, (255, 200, 60, 55),
-                                   (self.attack_range, self.attack_range),
-                                   self.attack_range, 3)
-                surf.blit(ring, (cx - self.attack_range, cy - self.attack_range))
-        else:
-            if self.kind == "dog":
-                self._draw_dog(surf, cx, cy)
-            elif self.kind == "cat":
-                self._draw_cat(surf, cx, cy)
-            elif self.kind == "eagle":
-                self._draw_eagle(surf, cx, cy)
+        if self.kind == "dog":
+            self._draw_dog(surf, cx, cy)
+        elif self.kind == "cat":
+            self._draw_cat(surf, cx, cy)
+        elif self.kind == "eagle":
+            self._draw_eagle(surf, cx, cy)
 
     def _draw_dog(self, surf, cx, cy):
         s = self.size
