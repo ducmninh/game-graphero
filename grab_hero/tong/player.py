@@ -92,6 +92,7 @@ class Player:
             for key, fname in (
                 ("shotgun", "gun_shotgun_ingame.png"),
                 ("smg", "gun_smg_ingame.png"),
+                ("ar", "gun_ar_ingame.png"),
                 ("sniper", "gun_sniper_ingame.png"),
             ):
                 path = SPRITES / fname

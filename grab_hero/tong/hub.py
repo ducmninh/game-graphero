@@ -61,6 +61,7 @@ def get_gun_preview(key):
     name_map = {
         "shotgun": "gun_shotgun.png",
         "smg": "gun_smg.png",
+        "ar": "gun_ar.png",
         "sniper": "gun_sniper.png",
     }
     fname = name_map.get(key)

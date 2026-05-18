@@ -111,10 +111,18 @@ class HUD:
         by = SCREEN_HEIGHT - HUD_PAD - 80
         draw_panel(surf, pygame.Rect(bx - 6, by - 6, 340, 86),
                    fill=(0, 0, 0, 160), border=(220, 220, 220))
-        # weapon icon (color block)
-        pygame.draw.rect(surf, spec["color"], (bx, by, 36, 36),
-                         border_radius=4)
-        pygame.draw.rect(surf, (0, 0, 0), (bx, by, 36, 36), 2, border_radius=4)
+        # weapon icon (sprite or color block)
+        icon_rect = pygame.Rect(bx, by, 36, 36)
+        spr = player._gun_sprites.get(wpn.key)
+        if spr is not None:
+            # Scaled to fit nicely in 36x36
+            scaled = pygame.transform.smoothscale(spr, (36, 36))
+            surf.blit(scaled, icon_rect)
+            pygame.draw.rect(surf, (0, 0, 0), icon_rect, 2, border_radius=4)
+        else:
+            pygame.draw.rect(surf, spec["color"], icon_rect, border_radius=4)
+            pygame.draw.rect(surf, (0, 0, 0), icon_rect, 2, border_radius=4)
+            
         # weapon name
         draw_text(surf, spec["name"], (bx + 46, by - 2), size=20,
                   bold=True, color=(255, 255, 255))
@@ -137,7 +145,13 @@ class HUD:
         slot_y = by + 50
         for i, key in enumerate(player.weapon_order):
             r = pygame.Rect(slot_x + i * 24, slot_y, 20, 20)
-            pygame.draw.rect(surf, WEAPONS[key]["color"], r, border_radius=3)
+            wpn_spr = player._gun_sprites.get(key)
+            if wpn_spr is not None:
+                scaled = pygame.transform.smoothscale(wpn_spr, (20, 20))
+                surf.blit(scaled, r)
+            else:
+                pygame.draw.rect(surf, WEAPONS[key]["color"], r, border_radius=3)
+            
             border = (255, 255, 0) if key == wpn.key else (40, 40, 40)
             pygame.draw.rect(surf, border, r, 2, border_radius=3)
             draw_text(surf, str(i + 1), (r.centerx, r.bottom + 1),
