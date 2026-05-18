@@ -3,7 +3,7 @@
 Một tựa game bắn súng hành động 2D góc nhìn từ trên xuống (Top-Down Shooter) vô cùng kịch tính, vui nhộn và đậm chất Việt Nam! Bạn sẽ vào vai những tài xế công nghệ huyền thoại (Grab và Shopee) chiến đấu chống lại đại dịch Zombie, giải cứu chú chó cưng và quyết chiến sinh tử PvP cùng bạn bè!
 
 <p align="center">
-  <img src="assets/sprites/grab_hero_cover.png" alt="Grab Hero Game Banner" width="650px">
+  <img src="assets/sprites/z7838166225743_d7c5a4f07f4d0b2b05c54cf689553c51.jpg" alt="Grab Hero Game Banner" width="650px">
   <br>
   <em>📸 <b>Game Cover / Banner:</b> Giao diện bắt đầu mang đậm phong cách phố thị công nghệ hiện đại</em>
 </p>
