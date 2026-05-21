@@ -3,45 +3,46 @@
 Một tựa game bắn súng hành động 2D góc nhìn từ trên xuống (Top-Down Shooter) vô cùng kịch tính, vui nhộn và đậm chất Việt Nam! Bạn sẽ vào vai những tài xế công nghệ huyền thoại (Grab và Shopee) chiến đấu chống lại đại dịch Zombie, giải cứu chú chó cưng và quyết chiến sinh tử PvP cùng bạn bè!
 
 <p align="center">
-  <img src="assets/sprites/z7838166225743_d7c5a4f07f4d0b2b05c54cf689553c51.jpg" alt="Grab Hero Game Banner" width="650px">
+  <img src="assets/screenshots/1_sanh_game.png" alt="Sảnh Game" width="750px">
   <br>
-  <em>📸 <b>Game Cover / Banner:</b> Giao diện bắt đầu mang đậm phong cách phố thị công nghệ hiện đại</em>
+  <em>📸 <b>Sảnh Chờ Game:</b> Giao diện bắt đầu mang đậm phong cách phố thị công nghệ hiện đại với chàng Grab Hero và chú chó cưng</em>
 </p>
 
 ---
 
-## 🌟 CÁC TÍNH NĂNG NỔI BẬT & CẬP NHẬT MỚI NHẤT
+## 🌟 GIỚI THIỆU TÍNH NĂNG VÀ CÁC CHẾ ĐỘ CHƠI
 
-### 🎨 1. Giao Diện Cyberpunk Kính Mờ & Nút Bấm Phát Sáng (MỚI)
-* **Phong cách Minimalist cực chất:** Loại bỏ các khung viền gỗ hay họa tiết chân chó cồng kềnh trước đây. Menu chính nay được đưa về **trung tâm màn hình** với thiết kế kính mờ trong suốt (Glassmorphism), tôn vinh bức ảnh nền đô thị tuyệt đẹp.
-* **Nút bấm phong cách Cyberpunk:**
-  * **Trạng thái thường:** Nút viền mỏng màu xanh Teal/Cyan thanh lịch, biểu tượng gọn gàng.
-  * **Trạng thái lựa chọn (Hover/Selected):** Nút đổi sang màu cam Neon rực rỡ, tích hợp hiệu ứng viền phát sáng (Glow), đường kẻ chỉ thị công nghệ thời thượng ở hai bên rìa và **biểu tượng nút Nguồn (Power Icon)** vẽ trực tiếp bằng đồ họa Pygame nguyên bản vô cùng sắc nét!
+### 1. 🎨 Menu Chính (Giao Diện Cyberpunk Cực Chất)
+<p align="center"><img src="assets/screenshots/2_menu.png" width="700px"></p>
 
-### 🐕 2. Kịch Bản Trailer Chương 1 & Nhiệm Vụ 23 Tên Trộm (MỚI)
-* **Trailer mở màn kịch tính:** Khi nhấn vào **Hành trình cứu chó** (Chương 1), bạn sẽ được thưởng thức đoạn giới thiệu cốt truyện chạy chữ chuyên nghiệp:
-  > **CHƯƠNG 1: SỨ MỆNH GIẢI CỨU CHÓ**
-  > * Bầy chó cưng đang chơi đùa ngoan ngoãn trong công viên.
-  > * Bất thình lình, một băng đảng gồm 23 tên trộm hung tợn ập đến.
-  > * Chúng đã tàn nhẫn bắt cóc toàn bộ bầy chó đi mất!
-  > * Nhiệm vụ của bạn: Lên xe, truy đuổi và tiêu diệt sạch 23 tên trộm.
-  > * Hãy giải cứu bầy chó và mang chúng về nhà an toàn!
-* **Bố trí 23 tên trộm thực tế:** Số lượng kẻ địch trong màn 1 được đồng bộ chính xác là **23 tên trộm cầm dao (thief_knife)** và **Tên Trùm Trộm (Boss 1)** bảo vệ lồng nhốt chú chó ở góc cuối bản đồ. Không còn zombie ngẫu nhiên ở màn này để giữ nguyên tính logic của cốt truyện!
+* **Phong cách Minimalist:** Giao diện tối giản, tập trung vào trung tâm màn hình với thiết kế kính mờ trong suốt (Glassmorphism), hiển thị trên phông nền khoa học viễn tưởng tuyệt đẹp.
+* **Nút bấm phong cách Hologram/Cyberpunk:** Trạng thái thường có màu viền Cyan thanh lịch. Khi người chơi chọn (Hover), nút sẽ đổi sang màu vàng cam neon cực kỳ nổi bật, tích hợp hiệu ứng viền phát sáng (Glow).
 
-### 🧠 3. Thuật Toán Sinh Quái Chống Kẹt Trong Nhà (MỚI)
-* **Quét va chạm an toàn (`_find_free_spawn_pos`):** Game tích hợp thuật toán thông minh tự động dò tìm vị trí trống trải trên bản đồ để sinh quái vật.
-* **Không bao giờ bị vướng:** Trước khi đặt kẻ địch xuống, hệ thống sẽ kiểm tra xem tọa độ đó có nằm trong các khu nhà (`house`), ô tô (`car`), cây cối (`tree`), thùng hàng... hay không. Nếu có vật cản, game sẽ tự động dời tọa độ sang vùng đất trống, đảm bảo quái vật luôn tự do di chuyển, áp sát và tấn công người chơi một cách mượt mà nhất.
+### 2. 🗺️ Chế Độ Chọn Màn Chơi (Hành Trình Cứu Chó)
+<p align="center"><img src="assets/screenshots/3_chon_man.png" width="700px"></p>
 
-### 🎭 4. Lựa Chọn Nhân Vật Độc Đáo (Pixel Art 8-Bit)
-* **Grab Hero:** Tài xế Grab nhanh nhẹn, linh hoạt với bộ trang phục xanh lá đặc trưng.
-* **Shopee Hero:** Hùng thần Shopee Food nhiệt huyết với bộ trang phục cam nổi bật, chiếc túi giao hàng sau lưng cực kỳ chi tiết.
-* **Hệ thống Sprite 4 hướng sắc nét:** Cả hai nhân vật đều sở hữu bộ ảnh chuyển động 4 hướng cực kỳ sắc sảo (Pixel-Perfect), chuyển động mượt mà khi đi lên, đi xuống, rẽ trái, rẽ phải.
+* **Cốt truyện kịch tính:** Một băng đảng 23 tên trộm hung hãn đã bắt cóc bầy chó cưng. Nhiệm vụ của bạn là lái xe truy đuổi và tiêu diệt chúng.
+* **Hệ thống bản đồ mở khóa:** Các màn chơi được liên kết thành một chuỗi hành trình. Vượt qua màn trước để mở khóa màn sau, tích lũy điểm sao để chứng tỏ khả năng sinh tồn của mình.
 
-### 🎮 5. Chế Độ Quyết Chiến PvP (Solo LAN/Wifi)
-* Kết nối trực tiếp giữa hai người chơi trong cùng một mạng LAN hoặc Wifi.
-* **Hồi sinh ngẫu nhiên:** Khi bị bắn hạ, người chơi sẽ ngay lập tức được hồi sinh ngẫu nhiên tại các điểm an toàn trên bản đồ.
-* **Đua điểm kịch tính:** Bên nào đạt được **10 mạng hạ gục trước** sẽ giành chiến thắng chung cuộc!
-* Đồng bộ hóa đạn, máu và vị trí giữa máy Chủ (Host) và máy Khách (Client) thời gian thực không giật lag.
+### 3. ⚔️ Chế Độ Chơi Mạng (PvP LAN/Wifi)
+<p align="center"><img src="assets/screenshots/4_choi_mang.png" width="700px"></p>
+
+* **Đấu súng cùng bạn bè:** Hỗ trợ kết nối trực tiếp giữa hai máy tính trong cùng mạng LAN hoặc Wifi.
+* **Cách thức linh hoạt:** Dễ dàng tạo phòng (Làm Chủ Phòng/Host) hoặc tham gia phòng (Vào Phòng/Client) chỉ với một địa chỉ IP. Trận chiến đua điểm số (First to 10 kills) được đồng bộ hóa thời gian thực cực kỳ mượt mà.
+
+### 4. 🔫 Kho Súng Cao Cấp & Nâng Cấp Nhân Vật
+<p align="center"><img src="assets/screenshots/5_kho_sung.png" width="700px"></p>
+
+* **Vũ khí đa dạng:** Trang bị tận răng với đủ loại súng: Lục (Pistol), Tiểu liên (SMG), Súng hoa cải (Shotgun), Súng máy (Assault Rifle) và cả Súng ngắm (Sniper).
+* **Chỉ số chi tiết:** Mỗi loại súng hiển thị rõ lượng Sát thương, Tốc độ xả đạn (RPS) và Cơ số đạn, giúp người chơi dễ dàng đưa ra chiến thuật mua sắm và nâng cấp phù hợp nhất trước khi ra trận.
+
+---
+
+### 🧠 Thuật Toán Thông Minh (Sinh Quái Chống Kẹt)
+* **Quét va chạm an toàn:** Game tích hợp thuật toán tự động dò tìm vị trí trống trải trên bản đồ để sinh quái vật. Đảm bảo kẻ địch không bao giờ bị kẹt trong nhà, ô tô hay cây cối, mang lại trải nghiệm chiến đấu hoàn hảo nhất.
+
+### 🎭 Đồ Họa Pixel Art Tinh Tế
+* Nhân vật được thiết kế chi tiết dưới dạng Pixel 8-bit sắc sảo, có thể chuyển động đa hướng và trang bị vũ khí trực tiếp ngay trên mô hình nhân vật.
 
 ---
 
@@ -58,39 +59,20 @@ Một tựa game bắn súng hành động 2D góc nhìn từ trên xuống (Top
 
 ---
 
-## 🌐 HƯỚNG DẪN CHƠI PVP 1V1 QUA WIFI/LAN
-
-Để solo chiến đấu cùng bạn bè cực kỳ đơn giản:
-1. **Máy Chủ (Host - Người lập phòng):**
-   * Vào Menu PvP, lấy địa chỉ IP LAN của máy mình (ví dụ: `192.168.1.15`) gửi cho bạn bè.
-   * Chọn nhân vật và bấm **Tạo Phòng (Host Game)**.
-2. **Máy Khách (Client - Người vào phòng):**
-   * Vào Menu PvP, nhập địa chỉ IP của máy Chủ đã gửi vào ô kết nối.
-   * Chọn nhân vật và bấm **Vào Phòng (Join Game)**.
-3. Khi cả hai đã kết nối thành công, trận chiến PvP 10 mạng hồi sinh kịch tính sẽ chính thức bắt đầu!
-
----
-
 ## 🚀 HƯỚNG DẪN CÀI ĐẶT & CHẠY GAME
 
-### Cách 1: Chạy trực tiếp từ file EXE (Khuyên dùng cho người chơi)
-Bạn chỉ cần truy cập vào thư mục `dist`, click đúp vào tệp tin chạy duy nhất:
-👉 **[GrabHero.exe](file:///c:/Users/LAPTOP/Downloads/grab_hero%20(1)/dist/GrabHero.exe)** là có thể tận hưởng trò chơi ngay lập tức mà không cần cài đặt thêm bất kỳ phần mềm nào khác!
+### Cách 1: Chạy trực tiếp từ file EXE (Dành cho người chơi)
+Truy cập vào thư mục `dist` và chạy tệp **GrabHero.exe**. Chơi luôn không cần cài đặt!
 
 ### Cách 2: Chạy bằng mã nguồn Python (Dành cho nhà phát triển)
-1. Yêu cầu máy tính đã cài đặt **Python 3.10+** và thư viện **Pygame**:
-   ```bash
-   pip install pygame
-   ```
-2. Chạy file chạy chính của game:
-   ```bash
-   python grab_hero/tong/main.py
-   ```
+Cài đặt **Python 3.10+** và thư viện **Pygame**:
+```bash
+pip install pygame
+python grab_hero/tong/main.py
+```
 
-### Cách 3: Đóng gói lại ứng dụng thành file EXE độc lập
-Nếu bạn có chỉnh sửa mã nguồn và muốn đóng gói lại thành app gửi bạn bè, chỉ cần chạy file:
-👉 **[build_app.bat](file:///c:/Users/LAPTOP/Downloads/grab_hero%20(1)/build_app.bat)** hệ thống sẽ tự động build lại phiên bản `.exe` mới nhất lưu vào thư mục `dist`!
+### Cách 3: Đóng gói lại thành file EXE
+Chạy file **build_app.bat**, hệ thống sẽ tự động build lại phiên bản `.exe` mới nhất!
 
 ---
-
-Chúc các dũng sĩ Shipper có những giờ phút giao hàng và giao tranh cực kỳ vui vẻ và kịch tính! 🏍️💨🔫
+Chúc các dũng sĩ Shipper có những giờ phút giao hàng và giao tranh cực kỳ kịch tính! 🏍️💨🔫
