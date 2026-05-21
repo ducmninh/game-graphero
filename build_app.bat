@@ -13,8 +13,6 @@ pyinstaller --noconsole --onefile ^
     --name "GrabHero" ^
     --add-data "assets;assets" ^
     --add-data "nhanvat;nhanvat" ^
-    --add-data "amthanh;amthanh" ^
-    --add-data "bando;bando" ^
     --paths "grab_hero/tong" ^
     "grab_hero/tong/main.py"
 

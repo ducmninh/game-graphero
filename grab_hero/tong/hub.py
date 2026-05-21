@@ -58,14 +58,47 @@ def _load_preview(filename, target_w):
 def get_gun_preview(key):
     if key in _gun_previews:
         return _gun_previews[key]
-    name_map = {
-        "shotgun": "gun_shotgun.png",
-        "smg": "gun_smg.png",
-        "ar": "gun_ar.png",
-        "sniper": "gun_sniper.png",
+
+    from pathlib import Path
+    import sys
+    if getattr(sys, 'frozen', False):
+        root = Path(sys._MEIPASS).parent
+    else:
+        # hub.py is at grab_hero(1)/grab_hero/tong/hub.py → root = grab_hero(1)
+        root = Path(__file__).resolve().parent.parent.parent
+
+    # Ánh xạ từng súng sang file ảnh thực tế
+    # Súng nhỏ (pistol, smg, pistol_mk2) → image-removebg-preview (6).png
+    # Grenade Launcher (súng cuối) → image-removebg-preview (1).png
+    # Các súng khác → thử file cũ trong SPRITES
+    root_map = {
+        "pistol":      root / "image-removebg-preview (6).png",
+        "pistol_mk2":  root / "image-removebg-preview (6).png",
+        "grenade":     root / "image-removebg-preview (1).png",
     }
-    fname = name_map.get(key)
-    img = _load_preview(fname, 220) if fname else None
+    sprite_map = {
+        "shotgun": "gun_shotgun.png",
+        "smg":     "gun_smg.png",
+        "ar":      "gun_ar.png",
+        "sniper":  "gun_sniper.png",
+    }
+
+    img = None
+    if key in root_map:
+        p = root_map[key]
+        if p.exists():
+            try:
+                raw = pygame.image.load(str(p)).convert_alpha()
+                # Scale chiều rộng về 220px
+                tw = 220
+                scale = tw / max(1, raw.get_width())
+                img = pygame.transform.smoothscale(
+                    raw, (tw, int(raw.get_height() * scale)))
+            except Exception as e:
+                print(f"gun preview load error {key}: {e}")
+    elif key in sprite_map:
+        img = _load_preview(sprite_map[key], 220)
+
     _gun_previews[key] = img
     return img
 
@@ -344,94 +377,199 @@ class Hub:
     def _draw_upgrade_panel(self, surf, panel):
         draw_text(surf, "Nâng cấp vĩnh viễn — lưu vào save, áp dụng mỗi lần chơi",
                   (panel.centerx, panel.top + 24), size=18,
-                  color=(220, 220, 220), bold=True, center=True)
+                  color=(200, 210, 200), bold=True, center=True)
         y = panel.top + 60
+        row_w = panel.width - 48
+        x = panel.left + 24
+        row_h = 74
+
         for i, key in enumerate(CHAR_UPGRADE_ORDER):
             u = CHAR_UPGRADES[key]
             lvl = self.save["upgrades"].get(key, 0)
-            if lvl >= u["max_level"]:
+            max_lvl = u["max_level"]
+            selected = (self.row == i)
+
+            if lvl >= max_lvl:
                 right = "MAX"
                 afford = False
             else:
                 cost = u["cost"][lvl]
                 right = f"{cost}$"
                 afford = self.save["gold"] >= cost
-            sub = f"{u['desc']}  •  Cấp: {lvl}/{u['max_level']}"
-            self._draw_row(surf, panel.left + 24, y, panel.width - 48, 70,
-                           u["name"], sub, right,
-                           selected=(self.row == i),
-                           color=u["color"], afford=afford)
-            y += 82
+            
+            sub = f"{u['desc']}  •  Cấp: {lvl}/{max_lvl}"
+
+            # --- Row Background ---
+            bg_rect = pygame.Rect(x, y, row_w, row_h)
+            # Metallic Sci-fi base
+            bg_color = (40, 50, 45) if not selected else (55, 70, 60)
+            pygame.draw.rect(surf, bg_color, bg_rect, border_radius=8)
+            
+            # Border
+            border_col = (100, 110, 105) if not selected else (255, 215, 0)
+            pygame.draw.rect(surf, border_col, bg_rect, 2, border_radius=8)
+
+            # Glow if selected
+            if selected:
+                glow_rect = pygame.Rect(x - 3, y - 3, row_w + 6, row_h + 6)
+                pygame.draw.rect(surf, (255, 200, 0, 100), glow_rect, 3, border_radius=10)
+
+            # --- Left: Icon placeholder & Text ---
+            icon_rect = pygame.Rect(x + 15, y + 12, 50, 50)
+            pygame.draw.rect(surf, (20, 25, 22), icon_rect, border_radius=6)
+            pygame.draw.rect(surf, u.get("color", (200, 200, 200)), icon_rect, 2, border_radius=6)
+            
+            # Draw title
+            draw_text(surf, u["name"], (x + 80, y + 15), size=24, bold=True, color=(255, 255, 255))
+            # Draw sub
+            draw_text(surf, sub, (x + 80, y + 42), size=14, color=(180, 190, 185))
+
+            # --- Middle: Segmented Progress Bar ---
+            bar_w = 260
+            bar_h = 16
+            bar_x = x + row_w // 2 - bar_w // 2
+            bar_y = y + row_h // 2 - bar_h // 2
+            
+            # Draw bar container
+            pygame.draw.rect(surf, (15, 20, 18), (bar_x - 4, bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
+            pygame.draw.rect(surf, (80, 90, 85) if not selected else (180, 150, 50), 
+                             (bar_x - 4, bar_y - 4, bar_w + 8, bar_h + 8), 1, border_radius=4)
+
+            # Draw segments
+            seg_gap = 4
+            seg_w = (bar_w - (max_lvl - 1) * seg_gap) / max_lvl
+            for s in range(max_lvl):
+                sx = bar_x + s * (seg_w + seg_gap)
+                s_rect = pygame.Rect(sx, bar_y, seg_w, bar_h)
+                if s < lvl:
+                    # Filled segment (Red if MAX, Yellow/Gold otherwise)
+                    fill_col = (200, 50, 50) if lvl >= max_lvl else (255, 215, 0)
+                    pygame.draw.rect(surf, fill_col, s_rect, border_radius=2)
+                else:
+                    # Empty segment
+                    pygame.draw.rect(surf, (40, 45, 40), s_rect, border_radius=2)
+
+            # --- Right: Price / MAX ---
+            right_x = x + row_w - 20
+            if lvl >= max_lvl:
+                draw_text(surf, "MAX", (right_x - 40, y + 25), size=28, color=(255, 60, 60), bold=True)
+            else:
+                col = (255, 220, 0) if afford else (200, 80, 80)
+                font = pygame.font.SysFont(FONT_PATH, 26, bold=True)
+                txt_img = font.render(right, True, col)
+                txt_rect = txt_img.get_rect(midright=(right_x, y + row_h // 2))
+                # Shadow
+                sh_img = font.render(right, True, (0, 0, 0))
+                surf.blit(sh_img, txt_rect.move(2, 2))
+                surf.blit(txt_img, txt_rect)
+
+            # Draw connecting neon line to the next row (if not last)
+            if i < len(CHAR_UPGRADE_ORDER) - 1:
+                cx = x + row_w // 2
+                cy_start = y + row_h + 2
+                cy_end = y + row_h + 8
+                # Draw a glowing cyan tick between rows
+                pygame.draw.line(surf, (50, 255, 200), (cx, cy_start), (cx, cy_end), 4)
+
+            y += row_h + 10
 
     def _draw_gun_panel(self, surf, panel):
         draw_text(surf,
-                  "Mua súng đẹp ngay tại sảnh (không cần chờ shop ingame)",
-                  (panel.centerx, panel.top + 24), size=18,
-                  color=(220, 220, 220), bold=True, center=True)
+                  "KHO VŨ KHÍ CAO CẤP",
+                  (panel.centerx, panel.top + 30), size=32,
+                  color=GOLD, bold=True, center=True)
 
-        # Split panel into list (left 55%) + preview (right 45%)
-        list_w = int(panel.width * 0.55)
-        list_rect = pygame.Rect(panel.left + 16, panel.top + 60,
-                                list_w, panel.height - 80)
-        preview_rect = pygame.Rect(panel.left + list_w + 32, panel.top + 60,
-                                   panel.width - list_w - 48,
-                                   panel.height - 80)
-        y = list_rect.top
+        n_guns = len(HUB_GUN_ORDER)
+        card_w = 240
+        card_h = 360
+        spacing = 40
+        
+        # Tính toán vị trí cuộn (Scroll) để thẻ đang chọn luôn ở giữa
+        target_scroll = self.row * (card_w + spacing)
+        if not hasattr(self, 'gun_scroll'):
+            self.gun_scroll = target_scroll
+        
+        # Cuộn mượt (Smooth lerp)
+        self.gun_scroll += (target_scroll - self.gun_scroll) * 0.15
+        
+        start_x = panel.centerx - card_w // 2 - int(self.gun_scroll)
+        start_y = panel.top + 80
+
         for i, key in enumerate(HUB_GUN_ORDER):
             spec = WEAPONS[key]
             owned = key in self.save["owned_guns"]
-            if owned:
-                right = "ĐÃ SỞ HỮU"
-                afford = False
+            selected = (self.row == i)
+            
+            # Card rect logic with pop-up animation for selected
+            cx = start_x + i * (card_w + spacing)
+            cy = start_y
+            
+            if selected:
+                cy -= 12
+                c_w = card_w + 12
+                c_h = card_h + 16
+                cx -= 6
             else:
-                right = f"{spec['price']}$"
+                c_w = card_w
+                c_h = card_h
+                
+            # Draw glow behind selected card
+            if selected:
+                glow_rect = pygame.Rect(cx - 8, cy - 8, c_w + 16, c_h + 16)
+                pygame.draw.rect(surf, (255, 215, 0), glow_rect, border_radius=20)
+            
+            # Glassmorphism background
+            bg_surface = pygame.Surface((c_w, c_h), pygame.SRCALPHA)
+            bg_color = (25, 35, 30, 220) if not selected else (40, 55, 45, 255)
+            pygame.draw.rect(bg_surface, bg_color, (0, 0, c_w, c_h), border_radius=16)
+            
+            # Sleek Border
+            border_color = (50, 70, 60, 255) if not selected else (255, 230, 100, 255)
+            border_width = 2 if not selected else 3
+            pygame.draw.rect(bg_surface, border_color, (0, 0, c_w, c_h), border_width, border_radius=16)
+            surf.blit(bg_surface, (cx, cy))
+            
+            # Gun Name with gradient-like styling (or just colored)
+            draw_text(surf, spec['name'], (cx + c_w//2, cy + 25), 
+                      size=24 if not selected else 28, color=spec['color'], bold=True, center=True)
+            
+            # Gun Image
+            gimg = get_gun_preview(key)
+            if gimg:
+                # Khung hiển thị súng
+                img_w = c_w - 40
+                scale = img_w / max(1, gimg.get_width())
+                img_h = int(gimg.get_height() * scale)
+                scaled_gimg = pygame.transform.smoothscale(gimg, (img_w, img_h))
+                
+                # Hiệu ứng nảy (floating) nếu đang chọn
+                img_y = cy + 80
+                if selected:
+                    img_y += math.sin(self.t * 6) * 6
+                
+                surf.blit(scaled_gimg, (cx + 20, int(img_y)))
+            
+            # Thông số vũ khí
+            stat_y = cy + c_h - 135
+            stats = [
+                f"Sát thương: {spec['damage']}",
+                f"Tốc bắn: {spec['fire_rate']} RPS",
+                f"Băng đạn: {spec['mag']} viên"
+            ]
+            for stat in stats:
+                draw_text(surf, stat, (cx + c_w//2, stat_y), size=16, color=(200, 220, 210), center=True)
+                stat_y += 22
+                
+            # Nút Mua / Sở hữu
+            btn_rect = pygame.Rect(cx + 20, cy + c_h - 55, c_w - 40, 40)
+            if owned:
+                pygame.draw.rect(surf, (40, 140, 80), btn_rect, border_radius=8)
+                draw_text(surf, "ĐÃ SỞ HỮU", btn_rect.center, size=18, color=(255, 255, 255), bold=True, center=True)
+            else:
                 afford = self.save["gold"] >= spec["price"]
-            sub = (f"DMG {spec['damage']}  ROF {spec['fire_rate']:.1f}"
-                   f"  MAG {spec['mag']}")
-            self._draw_row(surf, list_rect.left, y, list_rect.width, 56,
-                           spec["name"], sub, right,
-                           selected=(self.row == i),
-                           color=spec["color"], afford=afford)
-            y += 64
-
-        # Preview panel for the currently selected weapon
-        pygame.draw.rect(surf, (16, 24, 20), preview_rect)
-        pygame.draw.rect(surf, (40, 60, 50), preview_rect, 2)
-        sel_key = HUB_GUN_ORDER[self.row]
-        sel = WEAPONS[sel_key]
-        draw_text(surf, sel["name"],
-                  (preview_rect.centerx, preview_rect.top + 16),
-                  size=22, color=GOLD, bold=True, center=True)
-
-        # Gun image (real pixel art)
-        gimg = get_gun_preview(sel_key)
-        char_y = preview_rect.top + 56
-        if gimg is not None:
-            gx = preview_rect.centerx - gimg.get_width() // 2
-            gy = preview_rect.top + 48
-            surf.blit(gimg, (gx, gy))
-            char_y = gy + gimg.get_height() + 8
-
-        # Character holding the gun
-        cimg = get_grab_preview(sel_key)
-        if cimg is not None:
-            cx = preview_rect.centerx - cimg.get_width() // 2
-            cy_pos = min(preview_rect.bottom - cimg.get_height() - 80,
-                         char_y)
-            surf.blit(cimg, (cx, cy_pos))
-
-        # Stat lines at the bottom
-        stat_y = preview_rect.bottom - 72
-        for line in (
-            f"Damage: {sel['damage']}",
-            f"Fire Rate: {sel['fire_rate']:.1f} RPS",
-            f"Magazine: {sel['mag']}",
-        ):
-            draw_text(surf, line,
-                      (preview_rect.centerx, stat_y),
-                      size=16, color=(220, 220, 220), bold=True,
-                      center=True)
-            stat_y += 22
+                btn_color = (200, 160, 20) if afford else (120, 40, 40)
+                pygame.draw.rect(surf, btn_color, btn_rect, border_radius=8)
+                draw_text(surf, f"MUA: {spec['price']}$", btn_rect.center, size=18, color=(255, 255, 255), bold=True, center=True)
 
     def _draw_pet_panel(self, surf, panel):
         draw_text(surf,

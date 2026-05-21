@@ -27,7 +27,8 @@ class Bullet:
     def update(self, dt):
         self.life -= dt
         self.trail.append(Vec(self.pos))
-        if len(self.trail) > 6:
+        # Keep a much longer trail (35 points) for ALL bullets so that every flight path is always highly visible and beautiful!
+        if len(self.trail) > 35:
             self.trail.pop(0)
         self.pos += self.vel * dt
         return self.life > 0
@@ -36,13 +37,29 @@ class Bullet:
         # Draw motion trail (simple lines for performance)
         if len(self.trail) > 1:
             points = [cam.apply(t) for t in self.trail]
-            # Draw a fading trail
-            for i in range(len(points) - 1):
-                alpha = int(150 * (i / len(points)))
-                col = (*self.color, alpha)
-                # Note: pygame.draw.line doesn't support alpha easily on main surf, 
-                # but we can use a small glow circle or just a colored line.
-                pygame.draw.line(surf, self.color, points[i], points[i+1], max(1, self.size - 2))
+            n = len(points)
+            
+            # Gorgeous, custom neon gradient cometary trail for ALL bullets!
+            # We base the neon glow color on the bullet's custom color to match the weapon!
+            base_col = self.color
+            
+            # First pass: Outer thick neon glow
+            for i in range(n - 1):
+                factor = i / (n - 1)
+                # Outer glow color fades from dark to vibrant base color
+                r = int(base_col[0] * (0.3 + 0.7 * factor))
+                g = int(base_col[1] * (0.3 + 0.7 * factor))
+                b = int(base_col[2] * (0.3 + 0.7 * factor))
+                pygame.draw.line(surf, (r, g, b), points[i], points[i+1], self.size + 5)
+                
+            # Second pass: Inner bright core (white to bright base color)
+            for i in range(n - 1):
+                factor = i / (n - 1)
+                # Core fades from bright light-color to pure white at the head
+                r = int(base_col[0] * factor + 255 * (1 - factor))
+                g = int(base_col[1] * factor + 255 * (1 - factor))
+                b = int(base_col[2] * factor + 255 * (1 - factor))
+                pygame.draw.line(surf, (r, g, b), points[i], points[i+1], max(1, self.size - 1))
 
         # Draw bullet head (elongated)
         p = cam.apply(self.pos)

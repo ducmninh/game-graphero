@@ -1130,16 +1130,31 @@ class Enemy:
                             except: pass
                     return
         elif self.kind in ("zombie", "zombie_fast"):
-            # Load legacy zombie sprites into the new system
+            # Load zombie sprites từ nhanvat/zombi/
             try:
-                self.sprites["down"] = [pygame.image.load(str(SPRITES / "zombie_front.png")).convert_alpha()]
-                self.sprites["up"] = [pygame.image.load(str(SPRITES / "zombie_back.png")).convert_alpha()]
-                self.sprites["left"] = [pygame.image.load(str(SPRITES / "zombie_side.png")).convert_alpha()]
-                self.sprites["attack"] = [pygame.image.load(str(SPRITES / "zombie_attack.png")).convert_alpha()]
-                self.sprites["right"] = [pygame.transform.flip(self.sprites["left"][0], True, False)]
+                zombi_dir = NHANVAT / "zombi"
+                def _zload(path):
+                    if path.exists():
+                        return pygame.image.load(str(path)).convert_alpha()
+                    return None
+
+                front = _zload(zombi_dir / "zombie_down-removebg-preview.png")
+                back  = _zload(zombi_dir / "image-removebg-preview (1).png")
+                left  = _zload(zombi_dir / "image-removebg-preview (2).png")
+                right = _zload(zombi_dir / "image-removebg-preview (3).png")
+
+                if front: self.sprites["down"]   = [front]
+                if back:  self.sprites["up"]     = [back]
+                if left:  self.sprites["left"]   = [left]
+                if right:
+                    self.sprites["right"]  = [right]
+                    self.sprites["attack"] = [right]
+                elif left:
+                    self.sprites["right"]  = [pygame.transform.flip(left, True, False)]
+                    self.sprites["attack"] = [self.sprites["right"][0]]
                 return
-            except:
-                pass
+            except Exception as e:
+                print(f"Zombie sprite load error: {e}")
         
         if not prefix: return
 

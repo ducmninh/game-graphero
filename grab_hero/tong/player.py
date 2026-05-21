@@ -89,6 +89,7 @@ class Player:
                 if path.exists():
                     self._gun_sprites[key] = load_sprite_keep_alpha_nearest(path, PLAYER_SIZE)
         else:
+            # Ảnh súng từ thư mục sprite cũ (in-game sized)
             for key, fname in (
                 ("shotgun", "gun_shotgun_ingame.png"),
                 ("smg", "gun_smg_ingame.png"),
@@ -108,6 +109,33 @@ class Player:
                         self._gun_sprites[key] = img
                     except (pygame.error, OSError):
                         pass
+
+            # Ảnh súng thực tế từ thư mục gốc (grab_hero (1))
+            from pathlib import Path as _Path
+            import sys as _sys
+            if getattr(_sys, 'frozen', False):
+                _root = _Path(_sys._MEIPASS).parent
+            else:
+                _root = _Path(__file__).resolve().parent.parent.parent
+
+            _gun_real = {
+                "pistol":     _root / "image-removebg-preview (6).png",
+                "pistol_mk2": _root / "image-removebg-preview (6).png",
+                "grenade":    _root / "image-removebg-preview (1).png",
+            }
+            for key, p in _gun_real.items():
+                if p.exists():
+                    try:
+                        img = pygame.image.load(str(p)).convert_alpha()
+                        # Scale về chiều dài tối đa 52px để vừa HUD
+                        longest = max(img.get_size())
+                        scale = 52 / longest
+                        new_size = (int(img.get_width() * scale),
+                                    int(img.get_height() * scale))
+                        img = pygame.transform.smoothscale(img, new_size)
+                        self._gun_sprites[key] = img
+                    except (pygame.error, OSError) as e:
+                        print(f"Gun sprite load error [{key}]: {e}")
 
     # --------------------------------------------------------------
     @property

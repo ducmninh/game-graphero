@@ -19,7 +19,7 @@ from settings import (
     PLAYER_BIKE_DAMAGE, SHAKE_HIT, SHAKE_EXPLODE,
     STARTING_GOLD, FONT_PATH, STORYLINE,
     WORLD_W_TILES, WORLD_H_TILES, TILE,
-    GOLD, WHITE, GREEN, GRAY, SOUNDS, WEAPON_SOUNDS, SPRITES
+    GOLD, WHITE, GREEN, GRAY, SOUNDS, WEAPON_SOUNDS, SPRITES, ASSETS
 )
 from utils import Vec, draw_text, draw_panel, lerp_color, clamp, draw_bar
 from camera import Camera
@@ -37,6 +37,7 @@ from pets import Pet
 
 
 # ============================================================
+SCENE_START = "start"
 SCENE_MENU = "menu"
 SCENE_HUB = "hub"
 SCENE_INTRO = "intro"
@@ -61,8 +62,8 @@ class Game:
     def __init__(self):
         pygame.init()
         pygame.display.set_caption(TITLE)
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.fullscreen = False
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
+        self.fullscreen = True
         self.clock = pygame.time.Clock()
         
         self.menu_bg = None
@@ -82,7 +83,7 @@ class Game:
         # Persistent save (gold/upgrades/owned guns + pets)
         self.save = load_save()
 
-        self.scene = SCENE_MENU
+        self.scene = SCENE_START
         self.dialog_queue = []
         self.waiting_room_error = ""
         self.waiting_room_error_t = 0
@@ -173,6 +174,52 @@ class Game:
         except Exception as e:
             print(f"Error initializing mixer/sounds: {e}")
 
+        # Load intro video
+        self.intro_video = None
+        try:
+            import cv2
+            video_path = Path(__file__).resolve().parent.parent.parent / "mp_.mp4"
+            if video_path.exists():
+                self.intro_video = cv2.VideoCapture(str(video_path))
+                self.intro_video_fps = self.intro_video.get(cv2.CAP_PROP_FPS) or 30
+                self.intro_video_frame_time = 1.0 / self.intro_video_fps
+                self.intro_video_last_update = 0.0
+                self.intro_video_surface = None
+        except Exception as e:
+            print(f"Error initializing intro video: {e}")
+
+        # Load waiting room video
+        self.waiting_room_video = None
+        try:
+            import cv2
+            wr_video_path = Path(__file__).resolve().parent.parent.parent / "f_a_f_a_b_b_f_f_mp_.mp4"
+            if wr_video_path.exists():
+                self.waiting_room_video = cv2.VideoCapture(str(wr_video_path))
+                self.wr_video_fps = self.waiting_room_video.get(cv2.CAP_PROP_FPS) or 30
+                self.wr_video_frame_time = 1.0 / self.wr_video_fps
+                self.wr_video_last_update = 0.0
+                self.wr_video_surface = None
+        except Exception as e:
+            print(f"Error initializing waiting room video: {e}")
+
+        # Load menu background video (dreamina animated menu)
+        self.menu_video = None
+        try:
+            import cv2
+            import glob
+            menu_dir = Path(__file__).resolve().parent.parent.parent / "menu"
+            # Find the dreamina animated video
+            dreamina_files = list(menu_dir.glob("dreamina*.mp4"))
+            menu_vid_path = dreamina_files[0] if dreamina_files else None
+            if menu_vid_path and menu_vid_path.exists():
+                self.menu_video = cv2.VideoCapture(str(menu_vid_path))
+                self.menu_video_fps = self.menu_video.get(cv2.CAP_PROP_FPS) or 30
+                self.menu_video_frame_time = 1.0 / self.menu_video_fps
+                self.menu_video_last_update = 0.0
+                self.menu_video_surface = None
+        except Exception as e:
+            print(f"Error initializing menu video: {e}")
+
     def play_sound(self, key):
         if key in self.sounds:
             self.sounds[key].set_volume(self.vol_sfx)
@@ -182,7 +229,7 @@ class Game:
         """Play BGM only in menu/hub/etc, stop it during gameplay/story."""
         try:
             pygame.mixer.music.set_volume(self.vol_bgm)
-            outside_scenes = (SCENE_MENU, SCENE_HUB, SCENE_LOBBY,
+            outside_scenes = (SCENE_START, SCENE_MENU, SCENE_HUB, SCENE_LOBBY,
                               SCENE_LEVEL_SELECT, SCENE_CHAR_SELECT, SCENE_SETTINGS,
                               SCENE_BOSS_RUSH_MENU, SCENE_HOST_MODE_SELECT)
             if self.scene in outside_scenes:
@@ -395,6 +442,8 @@ class Game:
                     pass
                 else:
                     self.update_play(dt)
+            elif self.scene == SCENE_START:
+                pass
             elif self.scene == SCENE_MENU:
                 self.menu_blink += dt
             elif self.scene == SCENE_HUB:
@@ -526,23 +575,29 @@ class Game:
                 if event.key in (pygame.K_F11, pygame.K_f):
                     self.fullscreen = not self.fullscreen
                     if self.fullscreen:
-                        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
+                        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
                     else:
                         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+            if self.scene == SCENE_START:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+                        self.scene = SCENE_MENU
+                    elif event.key == pygame.K_ESCAPE:
+                        self.running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        self.scene = SCENE_MENU
+                continue
 
             if self.scene == SCENE_MENU:
                 # --- Mouse support ---
                 if event.type == pygame.MOUSEMOTION:
                     mx, my = event.pos
-                    pw, ph = 520, 420
-                    px = (SCREEN_WIDTH - pw) // 2
-                    py = 150
-                    for i in range(7):
-                        bx = px + 30
-                        by = py + 25 + i * 52
-                        btn_rect = pygame.Rect(bx, by, pw - 60, 44)
-                        if btn_rect.collidepoint(mx, my):
-                            self.menu_row = i
+                    if hasattr(self, 'menu_btn_rects'):
+                        for i, btn_rect in enumerate(self.menu_btn_rects):
+                            if btn_rect.collidepoint(mx, my):
+                                self.menu_row = i
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         mx, my = event.pos
@@ -550,34 +605,30 @@ class Game:
                         if gear_rect.collidepoint(mx, my):
                             self.scene = SCENE_SETTINGS
                         else:
-                            pw, ph = 520, 420
-                            px = (SCREEN_WIDTH - pw) // 2
-                            py = 150
-                            for i in range(7):
-                                bx = px + 30
-                                by = py + 25 + i * 52
-                                btn_rect = pygame.Rect(bx, by, pw - 60, 44)
-                                if btn_rect.collidepoint(mx, my):
-                                    self.menu_row = i
-                                    if i == 0:
-                                        self.scene = SCENE_LEVEL_SELECT
-                                        self.sel_level_idx = 0
-                                    elif i == 1:
-                                        self.scene = SCENE_LOBBY
-                                        self.network.start_lobby_listener()
-                                    elif i == 2:
-                                        self.scene = SCENE_SETTINGS
-                                    elif i == 3:
-                                        self.scene = SCENE_BOSS_RUSH_MENU
-                                        self.boss_rush_sel = 0
-                                    elif i == 4:
-                                        self.open_hub()
-                                        if self.hub: self.hub.tab = 0
-                                    elif i == 5:
-                                        self.scene = SCENE_CHAR_SELECT
-                                        self.char_sel_idx = 0 if self.char_type == "grab" else 1
-                                    elif i == 6:
-                                        self.running = False
+                            if hasattr(self, 'menu_btn_rects'):
+                                for i, btn_rect in enumerate(self.menu_btn_rects):
+                                    if btn_rect.collidepoint(mx, my):
+                                        self.menu_row = i
+                                        if i == 0:
+                                            self.scene = SCENE_LEVEL_SELECT
+                                            self.sel_level_idx = 0
+                                        elif i == 1:
+                                            self.scene = SCENE_LOBBY
+                                            self.network.start_lobby_listener()
+                                        elif i == 2:
+                                            self.scene = SCENE_SETTINGS
+                                        elif i == 3:
+                                            self.scene = SCENE_BOSS_RUSH_MENU
+                                            self.boss_rush_sel = 0
+                                        elif i == 4:
+                                            self.open_hub()
+                                            if self.hub: self.hub.tab = 0
+                                        elif i == 5:
+                                            self.scene = SCENE_CHAR_SELECT
+                                            self.char_sel_idx = 0 if self.char_type == "grab" else 1
+                                        elif i == 6:
+                                            self.running = False
+                                        break
                 
                 # --- Keyboard support ---
                 if event.type == pygame.KEYDOWN:
@@ -1548,8 +1599,10 @@ class Game:
                 # Clear hits from data so we don't process twice (simple way)
                 data["hits"] = []
 
-            # Consolidating updates in run() loop
-            pass
+            # Update weapon for all multiplayer peer dummy players!
+            for p_obj in self.network_players.values():
+                if p_obj.weapon:
+                    p_obj.weapon.update(dt)
 
         # Check PvP victory conditions
         if self.pvp_enabled and not getattr(self, "pvp_winner", None):
@@ -1576,14 +1629,11 @@ class Game:
                 
                 # Find random safe spawn
                 ww, wh = self.world.pixel_size()
+                r = self.player.radius
                 spawn_pos = Vec(random.randint(200, ww - 200), random.randint(200, wh - 200))
-                for _ in range(50):
-                    collides = False
-                    for s in self.world.solids:
-                        if s.rect.collidepoint(spawn_pos.x, spawn_pos.y):
-                            collides = True
-                            break
-                    if not collides:
+                for _ in range(100):
+                    spawn_rect = pygame.Rect(int(spawn_pos.x - r - 8), int(spawn_pos.y - r - 8), 2 * r + 16, 2 * r + 16)
+                    if not self.world.collides(spawn_rect):
                         break
                     spawn_pos = Vec(random.randint(200, ww - 200), random.randint(200, wh - 200))
                 
@@ -1795,7 +1845,9 @@ class Game:
             draw_text(self.screen, "CHỜ CHỦ PHÒNG BẮT ĐẦU LẠI...", (btn_rect.centerx, btn_rect.centery), size=14, color=WHITE, bold=True, center=True)
 
     def draw(self):
-        if self.scene == SCENE_MENU:
+        if self.scene == SCENE_START:
+            self.draw_start()
+        elif self.scene == SCENE_MENU:
             self.draw_menu()
         elif self.scene == SCENE_CHAR_SELECT:
             self.draw_char_select()
@@ -2146,24 +2198,104 @@ class Game:
                       size=20, color=(255, 180, 60),
                       bold=True, center=True)
 
+    def draw_start(self):
+        drawn = False
+        if self.intro_video is not None:
+            try:
+                import cv2
+                now = time.time()
+                if not hasattr(self, 'intro_video_last_update'):
+                    self.intro_video_last_update = 0.0
+                    self.intro_video_surface = None
+                
+                if now - self.intro_video_last_update >= self.intro_video_frame_time:
+                    ret, frame = self.intro_video.read()
+                    if not ret:
+                        # Loop video
+                        self.intro_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = self.intro_video.read()
+                    
+                    if ret:
+                        frame = cv2.resize(frame, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        self.intro_video_surface = pygame.image.frombuffer(frame.tobytes(), (SCREEN_WIDTH, SCREEN_HEIGHT), 'RGB')
+                        self.intro_video_last_update = now
+                
+                if self.intro_video_surface is not None:
+                    self.screen.blit(self.intro_video_surface, (0, 0))
+                    drawn = True
+            except Exception as e:
+                print(f"Error reading/drawing video frame: {e}")
+
+        if not drawn:
+            if self.menu_bg is not None:
+                self.screen.blit(self.menu_bg, (0, 0))
+            else:
+                self.screen.fill((8, 6, 20))
+
+        # Pulse effect
+        pulse = math.sin(self.t * 4.0) * 0.5 + 0.5
+        glow_color = (
+            int(255 * (0.8 + 0.2 * pulse)),
+            int(200 * (0.8 + 0.2 * pulse)),
+            int(50 * (0.8 + 0.2 * pulse))
+        )
+        
+        cx = SCREEN_WIDTH // 2
+        cy = SCREEN_HEIGHT // 2
+        
+        # BẮT ĐẦU text
+        draw_text(self.screen, "BẮT ĐẦU", (cx, cy - 220), size=54, color=glow_color, bold=True, center=True)
+        
+        # Subtext: ẤN ENTER ĐỂ ĐẾN VỚI MENU
+        sub_color = (
+            int(200 + 55 * pulse),
+            int(200 + 55 * pulse),
+            int(200 + 55 * pulse)
+        )
+        draw_text(self.screen, "ẤN ENTER HOẶC CLICK CHUỘT ĐỂ ĐẾN VỚI MENU", (cx, cy - 160), size=20, color=sub_color, bold=True, center=True)
+
     # ==================================================================
     def draw_menu(self):
-        if self.menu_bg:
-            self.screen.blit(self.menu_bg, (0, 0))
-        else:
-            # Premium dark forest/neon hybrid background with dynamic animations
-            self.screen.fill((10, 16, 12))
-        
-            if not self.menu_bg:
-                # Parallax moving neon grids/lines for high-tech premium gaming look
+        # === BACKGROUND: Video mới (dreamina animated) ===
+        drawn = False
+        if hasattr(self, 'menu_video') and self.menu_video is not None:
+            try:
+                import cv2
+                now = time.time()
+                if not hasattr(self, 'menu_video_last_update'):
+                    self.menu_video_last_update = 0.0
+                    self.menu_video_surface = None
+
+                if now - self.menu_video_last_update >= self.menu_video_frame_time:
+                    ret, frame = self.menu_video.read()
+                    if not ret:
+                        self.menu_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = self.menu_video.read()
+
+                    if ret:
+                        frame = cv2.resize(frame, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        self.menu_video_surface = pygame.image.frombuffer(frame.tobytes(), (SCREEN_WIDTH, SCREEN_HEIGHT), 'RGB')
+                        self.menu_video_last_update = now
+
+                if self.menu_video_surface is not None:
+                    self.screen.blit(self.menu_video_surface, (0, 0))
+                    drawn = True
+            except Exception as e:
+                print(f"Error reading/drawing Menu video frame: {e}")
+
+        if not drawn:
+            if self.menu_bg:
+                self.screen.blit(self.menu_bg, (0, 0))
+            else:
+                self.screen.fill((10, 16, 12))
                 for i in range(15):
                     y_line = int((i * 60 + self.t * 15) % SCREEN_HEIGHT)
                     alpha = int(25 + 15 * math.sin(self.t + i))
                     line_surf = pygame.Surface((SCREEN_WIDTH, 1), pygame.SRCALPHA)
                     line_surf.fill((0, 200, 100, alpha))
                     self.screen.blit(line_surf, (0, y_line))
-
-                # Floating green/gold neon fireflies
                 for i in range(45):
                     x = (i * 137 + int(self.t * 22)) % SCREEN_WIDTH
                     y = (i * 79 + int(self.t * 12)) % SCREEN_HEIGHT
@@ -2175,94 +2307,89 @@ class Game:
                     pygame.draw.circle(s, (*col, pulse), (r * 2, r * 2), r)
                     self.screen.blit(s, (x - r * 2, y - r * 2))
 
-        # Layout calculation
-        pw, ph = 520, 420
-        px = (SCREEN_WIDTH - pw) // 2
-        title_x = px + pw // 2
+        # === Load 7 nút PNG từ thư mục menu (chỉ load 1 lần) ===
+        if not hasattr(self, 'menu_btn_imgs'):
+            self.menu_btn_imgs = []
+            menu_dir = Path(__file__).resolve().parent.parent.parent / "menu"
+            # Thứ tự nút: Hành trình, Chơi mạng, Cài đặt, Boss Rush, Cửa hàng, Nhân vật, Thoát
+            btn_files = [
+                "1-removebg-preview.png",           # 0: HÀNH TRÌNH CỨU CHÓ
+                "2-removebg-preview.png",           # 1: CHƠI MẠNG (WIFI)
+                "3-removebg-preview.png",           # 2: CÀI ĐẶT CHUNG
+                "image-removebg-preview (4).png",   # 3: ĐẠI CHIẾN BOSS RUSH
+                "image-removebg-preview (3).png",   # 4: CỬA HÀNG (SHOP)
+                "image-removebg-preview (2).png",   # 5: CHỌN NHÂN VẬT
+                "image-removebg-preview (1).png",   # 6: THOÁT GAME
+            ]
+            for fname in btn_files:
+                img_path = menu_dir / fname
+                if img_path.exists():
+                    try:
+                        img = pygame.image.load(str(img_path)).convert_alpha()
+                        # Scale chiều cao nút về 68px, giữ tỉ lệ
+                        target_h = 68
+                        target_w = int(img.get_width() * (target_h / img.get_height()))
+                        img = pygame.transform.smoothscale(img, (target_w, target_h))
+                        self.menu_btn_imgs.append(img)
+                    except Exception as e:
+                        print(f"Error loading {fname}: {e}")
+                        self.menu_btn_imgs.append(None)
+                else:
+                    print(f"Menu button not found: {img_path}")
+                    self.menu_btn_imgs.append(None)
 
-        # Main Title (GRAB HERO with dynamic glowing split style)
-        title_y = 48
-        # Glow shadow
-        for ox, oy in [(-3, -3), (3, 3), (-3, 3), (3, -3)]:
-            draw_text(self.screen, "GRAB HERO", (title_x + ox, title_y + oy), 
-                      size=86, color=(8, 30, 15), bold=True, center=True)
-        draw_text(self.screen, "GRAB HERO", (title_x, title_y), 
-                  size=86, color=GOLD, bold=True, center=True)
-                  
-        # Subtitle
-        draw_text(self.screen, "GIẢI CỨU CHÚ CHÓ", (title_x, title_y + 64), 
-                  size=24, color=(180, 240, 200), bold=True, center=True)
+            # Lưu bản gốc để làm hiệu ứng hover scale
+            self.menu_btn_imgs_orig = list(self.menu_btn_imgs)
 
-        # Central Panel (Premium Cyberpunk Grab-themed Glassmorphism Panel)
-        py = title_y + 102
-        panel_rect = pygame.Rect(px, py, pw, ph)
-        
-        # Buttons
-        options = [
-            "HÀNH TRÌNH CỨU CHÓ",
-            "CHƠI MẠNG (WIFI)",
-            "CÀI ĐẶT CHUNG",
-            "ĐẠI CHIẾN BOSS RUSH",
-            "CỬA HÀNG (SHOP)",
-            "CHỌN NHÂN VẬT",
-            "THOÁT GAME"
-        ]
-        
-        btn_h = 44
-        btn_w = pw - 60
-        for i, opt in enumerate(options):
-            if i == 5:
-                cur = "GRAB" if self.char_type == "grab" else "SHOPEE"
-                opt = f"CHỌN NHÂN VẬT ({cur})"
-            
-            bx = px + 30
-            by = py + 25 + i * (btn_h + 8)
-            btn_rect = pygame.Rect(bx, by, btn_w, btn_h)
-            
-            is_sel = (self.menu_row == i)
-            
-            btn_surf = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
-            if is_sel:
-                # Cyberpunk selected button (Orange theme)
-                # Outer glow
-                glow_rect = btn_rect.inflate(6, 6)
-                glow_surf = pygame.Surface((glow_rect.w, glow_rect.h), pygame.SRCALPHA)
-                pygame.draw.rect(glow_surf, (255, 120, 0, 60), (0, 0, glow_rect.w, glow_rect.h), border_radius=8)
-                self.screen.blit(glow_surf, glow_rect.topleft)
+        # === VẼ 7 NÚT bên trái màn hình (không cần hero image) ===
+        left_margin = 30
+        btn_spacing = 14
 
-                # Button body
-                pygame.draw.rect(btn_surf, (40, 20, 10, 210), (0, 0, btn_w, btn_h), border_radius=8)
-                pygame.draw.rect(btn_surf, (255, 150, 0), (0, 0, btn_w, btn_h), 2, border_radius=8)
-                
-                # Power Icon on the left
-                cx, cy = 24, btn_h // 2
-                pygame.draw.circle(btn_surf, (255, 150, 0), (cx, cy), 9, 2)
-                # "Erase" the top of the circle to make a power button shape
-                pygame.draw.rect(btn_surf, (40, 20, 10, 210), (cx - 4, cy - 11, 8, 8))
-                pygame.draw.line(btn_surf, (255, 150, 0), (cx, cy - 10), (cx, cy), 2)
-                
-                # Tech decor lines on the right
-                pygame.draw.line(btn_surf, (255, 150, 0), (btn_w - 30, cy - 6), (btn_w - 15, cy - 6), 2)
-                pygame.draw.line(btn_surf, (255, 150, 0), (btn_w - 24, cy + 6), (btn_w - 15, cy + 6), 2)
+        # Tính tổng chiều cao
+        valid_imgs = [img for img in self.menu_btn_imgs if img is not None]
+        total_btn_h = sum(img.get_height() for img in valid_imgs) + btn_spacing * max(0, len(valid_imgs) - 1)
 
-                text_color = (255, 230, 200)
+        # Căn giữa theo chiều dọc
+        btn_start_y = (SCREEN_HEIGHT - total_btn_h) // 2
+
+        self.menu_btn_rects = []
+        current_y = btn_start_y
+        for i in range(7):
+            orig_img = self.menu_btn_imgs_orig[i] if hasattr(self, 'menu_btn_imgs_orig') and i < len(self.menu_btn_imgs_orig) else None
+            img = orig_img
+            if img is None:
+                self.menu_btn_rects.append(pygame.Rect(0, 0, 0, 0))
+                continue
+
+            is_selected = (getattr(self, 'menu_row', 0) == i)
+
+            # Hiệu ứng scale + dịch chuyển khi hover
+            if is_selected:
+                scale_f = 1.10 + 0.02 * math.sin(self.t * 6)
+                new_w = int(img.get_width() * scale_f)
+                new_h = int(img.get_height() * scale_f)
+                draw_img = pygame.transform.smoothscale(img, (new_w, new_h))
+                x = left_margin + 8  # dịch phải thêm chút
+                dy = (new_h - img.get_height()) // 2
+                draw_y = current_y - dy
             else:
-                # Cyberpunk unselected button (Teal/Cyan theme)
-                pygame.draw.rect(btn_surf, (10, 40, 30, 210), (0, 0, btn_w, btn_h), border_radius=8)
-                pygame.draw.rect(btn_surf, (0, 200, 150), (0, 0, btn_w, btn_h), 2, border_radius=8)
-                text_color = (200, 240, 230)
-            
-            self.screen.blit(btn_surf, (bx, by))
-            
-            draw_text(self.screen, opt, btn_rect.center, size=20, 
-                      color=text_color, bold=True, center=True)
+                draw_img = img
+                new_w, new_h = img.get_size()
+                x = left_margin
+                draw_y = current_y
 
-        # Help text
-        draw_text(self.screen, "↑ / ↓ : Chọn    ENTER : Xác nhận", 
-                  (px + pw // 2, py + ph + 35), size=18, 
-                  color=(160, 200, 175), center=True)
-        
-        self.draw_settings_button()
+            rect = pygame.Rect(x, current_y, img.get_width(), img.get_height())
+            self.menu_btn_rects.append(rect)
+
+            # Viền glow vàng khi đang chọn
+            if is_selected:
+                glow_alpha = int(180 + 75 * math.sin(self.t * 8))
+                glow_surf = pygame.Surface((new_w + 12, new_h + 12), pygame.SRCALPHA)
+                pygame.draw.rect(glow_surf, (255, 215, 0, glow_alpha), (0, 0, new_w + 12, new_h + 12), border_radius=14)
+                self.screen.blit(glow_surf, (x - 6, draw_y - 6))
+
+            self.screen.blit(draw_img, (x, draw_y))
+            current_y += img.get_height() + btn_spacing
 
     # ==================================================================
     def draw_intro_overlay(self):
@@ -2543,68 +2670,225 @@ class Game:
 
     # ==================================================================
     def draw_level_select(self):
-        # Cosmic background
-        self.screen.fill((10, 5, 25))
-        # Stars
-        for i in range(100):
-            x = (i * 137 + int(self.t * 10)) % SCREEN_WIDTH
-            y = (i * 91) % SCREEN_HEIGHT
-            pygame.draw.circle(self.screen, (200, 200, 255), (x, y), 1)
+        # ── Nền gradient tối (đêm) ──────────────────────────────────────
+        for yy in range(SCREEN_HEIGHT):
+            ratio = yy / SCREEN_HEIGHT
+            r = int(4 + ratio * 8)
+            g = int(2 + ratio * 6)
+            b = int(18 + ratio * 30)
+            pygame.draw.line(self.screen, (r, g, b), (0, yy), (SCREEN_WIDTH, yy))
 
-        draw_text(self.screen, "CHỌN MÀN CHƠI", (SCREEN_WIDTH // 2, 60), 
-                  size=48, color=GOLD, bold=True, center=True)
+        # ── Sao lấp lánh ────────────────────────────────────────────────
+        if not hasattr(self, '_ls_stars'):
+            import random as _rnd
+            self._ls_stars = [(_rnd.randint(0, SCREEN_WIDTH), _rnd.randint(0, SCREEN_HEIGHT),
+                                _rnd.random() * 2.5, _rnd.random() * 6.28) for _ in range(160)]
+        for sx, sy, sp, ph in self._ls_stars:
+            bright = int(140 + 115 * math.sin(self.t * sp + ph))
+            pygame.draw.circle(self.screen, (bright, bright, min(255, bright + 40)), (sx, sy), 1)
 
-        # Islands / Nodes
-        # Positions in a zigzag or arc
+        # ── Đám mây/sương mờ cuộn ───────────────────────────────────────
+        for i in range(5):
+            cx = int((i * 250 + self.t * 18) % (SCREEN_WIDTH + 200)) - 100
+            cy = SCREEN_HEIGHT // 2 + 80 + i * 22
+            s = pygame.Surface((300, 80), pygame.SRCALPHA)
+            pygame.draw.ellipse(s, (255, 255, 255, 10), (0, 0, 300, 80))
+            self.screen.blit(s, (cx, cy))
+
+        # ── Tiêu đề ─────────────────────────────────────────────────────
+        pulse_title = 0.85 + 0.15 * math.sin(self.t * 2.5)
+        title_col = (int(255 * pulse_title), int(200 * pulse_title), int(30 * pulse_title))
+        # Bóng tiêu đề
+        draw_text(self.screen, "CHỌN MÀN CHƠI",
+                  (SCREEN_WIDTH // 2 + 3, 58), size=56, color=(0, 0, 0), bold=True, center=True)
+        draw_text(self.screen, "CHỌN MÀN CHƠI",
+                  (SCREEN_WIDTH // 2, 55), size=56, color=title_col, bold=True, center=True)
+
+        # ── Vị trí các node trên bản đồ ─────────────────────────────────
         island_pos = [
-            (150, 450), (300, 320), (500, 480), (700, 350), 
-            (900, 450), (1050, 300), (1150, 500)
+            (145,  455), (310, 310), (510, 465), (720, 330),
+            (900,  445), (1070, 290), (1200, 470)
         ]
-        
-        # Draw path
+        LEVEL_NAMES = [
+            "Thành Phố Đêm", "Rừng Ma", "Đầm Lầy", "Sa Mạc Lửa",
+            "Băng Nguyên",   "Tháp Cổ", "Sào Huyệt Trùm"
+        ]
+        LEVEL_ICONS = ["🌆", "🌲", "🌿", "🔥", "❄️", "🏯", "💀"]
+        LEVEL_COLORS = [
+            (80,  160, 255),  # Xanh biển - thành phố
+            (60,  200,  80),  # Xanh lá - rừng
+            (100, 180,  80),  # Xanh đậm - đầm lầy
+            (255, 140,  40),  # Cam - sa mạc
+            (120, 210, 255),  # Xanh nhạt - băng
+            (180, 120, 255),  # Tím - tháp cổ
+            (255,  60,  60),  # Đỏ - trùm cuối
+        ]
+        best = self.save.get("best_level", 0)
+
+        # ── Đường nối giữa các node ──────────────────────────────────────
         for i in range(len(island_pos) - 1):
-            pygame.draw.line(self.screen, (60, 60, 100), island_pos[i], island_pos[i+1], 3)
+            p1, p2 = island_pos[i], island_pos[i + 1]
+            unlocked = (i < best + 1)
+            # Đường nền tối
+            pygame.draw.line(self.screen, (25, 25, 50), p1, p2, 5)
+            if unlocked:
+                # Đường sáng với animation chạy dọc
+                seg_len = math.hypot(p2[0]-p1[0], p2[1]-p1[1])
+                steps = max(2, int(seg_len // 20))
+                for s in range(steps):
+                    t_ratio = (s / steps + self.t * 0.4) % 1.0
+                    px = int(p1[0] + (p2[0] - p1[0]) * t_ratio)
+                    py = int(p1[1] + (p2[1] - p1[1]) * t_ratio)
+                    alpha = int(80 + 80 * math.sin(t_ratio * math.pi))
+                    dot_s = pygame.Surface((8, 8), pygame.SRCALPHA)
+                    pygame.draw.circle(dot_s, (*LEVEL_COLORS[i], alpha), (4, 4), 4)
+                    self.screen.blit(dot_s, (px - 4, py - 4))
 
+        # ── Vẽ từng node đảo ────────────────────────────────────────────
         for i, pos in enumerate(island_pos):
-            is_sel = (self.sel_level_idx == i)
-            # Floating effect
-            bob = math.sin(self.t * 3 + i) * 10
-            draw_pos = (pos[0], pos[1] + int(bob))
-            
-            # Rock/Island
-            rect = pygame.Rect(0, 0, 100, 60)
-            rect.center = draw_pos
-            pygame.draw.ellipse(self.screen, (60, 40, 80), rect) # Dark purple rock
-            pygame.draw.ellipse(self.screen, (30, 20, 40), rect, 4)
-            
-            # Highlight selected
+            is_sel    = (self.sel_level_idx == i)
+            unlocked  = (i <= best)
+            node_col  = LEVEL_COLORS[i]
+            bob       = math.sin(self.t * 2.5 + i * 1.1) * 8
+            dp        = (pos[0], int(pos[1] + bob))  # draw position
+
+            # -- Bóng đổ dưới đảo --
+            shadow_s = pygame.Surface((130, 40), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow_s, (0, 0, 0, 60), (0, 0, 130, 40))
+            self.screen.blit(shadow_s, (dp[0] - 65, dp[1] + 22))
+
+            # -- Đảo nổi (ellipse) --
+            island_col = (55, 38, 75) if unlocked else (28, 22, 40)
+            island_surf = pygame.Surface((130, 56), pygame.SRCALPHA)
+            pygame.draw.ellipse(island_surf, island_col, (0, 0, 130, 56))
+            pygame.draw.ellipse(island_surf, (80, 55, 110) if unlocked else (40, 30, 55),
+                                (0, 0, 130, 56), 3)
+            self.screen.blit(island_surf, (dp[0] - 65, dp[1] - 2))
+
+            # -- Glow hào quang khi đang chọn --
             if is_sel:
-                pygame.draw.ellipse(self.screen, GOLD, rect.inflate(15, 15), 3)
-                # Glow effect
-                glow_r = int(70 + math.sin(self.t * 6) * 10)
-                s = pygame.Surface((glow_r*2, glow_r*2), pygame.SRCALPHA)
-                pygame.draw.circle(s, (255, 215, 0, 60), (glow_r, glow_r), glow_r)
-                self.screen.blit(s, (draw_pos[0] - glow_r, draw_pos[1] - glow_r))
+                glow_r = int(72 + math.sin(self.t * 7) * 12)
+                glow_surf = pygame.Surface((glow_r * 2, glow_r * 2), pygame.SRCALPHA)
+                glow_alpha = int(55 + 35 * math.sin(self.t * 5))
+                pygame.draw.circle(glow_surf, (*node_col, glow_alpha), (glow_r, glow_r), glow_r)
+                self.screen.blit(glow_surf, (dp[0] - glow_r, dp[1] - glow_r - 30))
 
-            # Level circle/number
-            pygame.draw.circle(self.screen, (255, 150, 50), (draw_pos[0], draw_pos[1] - 40), 25)
-            pygame.draw.circle(self.screen, (200, 100, 0), (draw_pos[0], draw_pos[1] - 40), 25, 3)
-            draw_text(self.screen, str(i + 1), (draw_pos[0], draw_pos[1] - 40), 
-                      size=24, color=WHITE, bold=True, center=True)
-            
-            # Stars (Dummy for now, but ready for save data)
-            star_y = draw_pos[1] - 80
-            for dx in (-25, 0, 25):
-                star_col = GOLD if i < self.save.get("best_level", 0) else (60, 60, 60)
-                pygame.draw.polygon(self.screen, star_col, [
-                    (draw_pos[0] + dx, star_y - 8),
-                    (draw_pos[0] + dx + 5, star_y + 4),
-                    (draw_pos[0] + dx - 5, star_y + 4),
-                ])
+            # -- Vòng tròn node chính --
+            node_r = 32 if is_sel else 26
+            # Nền tối node
+            pygame.draw.circle(self.screen, (15, 10, 30), (dp[0], dp[1] - 38), node_r + 4)
+            # Màu node
+            node_draw_col = node_col if unlocked else (55, 55, 70)
+            pygame.draw.circle(self.screen, node_draw_col, (dp[0], dp[1] - 38), node_r)
+            # Viền node
+            border_col = (255, 215, 0) if is_sel else ((200, 200, 200) if unlocked else (50, 50, 70))
+            pygame.draw.circle(self.screen, border_col, (dp[0], dp[1] - 38), node_r, 3)
 
-        draw_text(self.screen, "Dùng phím Mũi tên để chọn    ENTER để chơi", 
-                  (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60), size=20, color=GRAY, center=True)
-        draw_text(self.screen, "ESC quay lại Menu", (30, 30), size=16, color=GRAY)
+            # -- Số màn bên trong node --
+            num_size = 26 if is_sel else 22
+            draw_text(self.screen, str(i + 1), (dp[0], dp[1] - 38),
+                      size=num_size, color=WHITE if unlocked else (80, 80, 100),
+                      bold=True, center=True)
+
+            # -- 3 ngôi sao bên trên --
+            star_y = dp[1] - 85
+            stars_earned = min(3, max(0, best - i)) if unlocked else 0
+            for si, dx in enumerate((-20, 0, 20)):
+                filled = (si < stars_earned)
+                star_col = (255, 215, 0) if filled else (45, 40, 70)
+                pts = []
+                for a in range(5):
+                    ang_out = math.pi / 2 + a * (2 * math.pi / 5)
+                    ang_in  = ang_out + math.pi / 5
+                    pts.append((dp[0] + dx + math.cos(ang_out) * 8,
+                                star_y   + math.sin(ang_out) * 8))
+                    pts.append((dp[0] + dx + math.cos(ang_in)  * 4,
+                                star_y   + math.sin(ang_in)  * 4))
+                pygame.draw.polygon(self.screen, star_col, pts)
+                if filled:
+                    pygame.draw.polygon(self.screen, (255, 255, 200), pts, 1)
+
+            # -- Khóa nếu chưa mở --
+            if not unlocked:
+                lock_s = pygame.Surface((28, 28), pygame.SRCALPHA)
+                pygame.draw.rect(lock_s, (80, 80, 100), (4, 12, 20, 14), border_radius=3)
+                pygame.draw.arc(lock_s, (80, 80, 100),
+                                pygame.Rect(6, 2, 16, 16), 0, math.pi, 3)
+                self.screen.blit(lock_s, (dp[0] - 14, dp[1] - 54))
+
+            # -- Zombie pixel art phía trên đảo (1-3 con tuỳ màn) --
+            if unlocked or is_sel:
+                num_zombies = 1 + (i % 3)  # 1, 2 hoặc 3 zombie
+                z_col_skin = (110, 160, 80)   # xanh lá zombie
+                z_col_dark = (70, 110, 50)
+                z_col_eye  = (255, 50, 50)    # mắt đỏ
+                # đặt zombie ngay trên đảo, cách đều nhau
+                z_spacing = 28
+                z_start_x = dp[0] - (num_zombies - 1) * z_spacing // 2
+                for z in range(num_zombies):
+                    zx = z_start_x + z * z_spacing
+                    # zombie nhảy lên xuống lệch pha nhau
+                    zy = dp[1] - 78 + int(math.sin(self.t * 3 + i + z * 1.2) * 4)
+                    # Thân zombie (hình chữ nhật nhỏ)
+                    pygame.draw.rect(self.screen, z_col_skin,
+                                     (zx - 5, zy + 8, 10, 12), border_radius=2)
+                    # Đầu zombie
+                    pygame.draw.rect(self.screen, z_col_skin,
+                                     (zx - 5, zy - 2, 10, 10), border_radius=3)
+                    pygame.draw.rect(self.screen, z_col_dark,
+                                     (zx - 5, zy - 2, 10, 10), 1, border_radius=3)
+                    # Mắt đỏ
+                    pygame.draw.circle(self.screen, z_col_eye, (zx - 2, zy + 2), 2)
+                    pygame.draw.circle(self.screen, z_col_eye, (zx + 2, zy + 2), 2)
+                    # Hai tay vươn ra (▲ kiểu cũ)
+                    arm_y = zy + 12
+                    pygame.draw.line(self.screen, z_col_skin,
+                                     (zx - 5, arm_y), (zx - 12, arm_y - 4), 2)
+                    pygame.draw.line(self.screen, z_col_skin,
+                                     (zx + 5, arm_y), (zx + 12, arm_y - 4), 2)
+                    # Chân
+                    pygame.draw.line(self.screen, z_col_dark,
+                                     (zx - 3, zy + 20), (zx - 4, zy + 27), 2)
+                    pygame.draw.line(self.screen, z_col_dark,
+                                     (zx + 3, zy + 20), (zx + 4, zy + 27), 2)
+
+        # ── Panel thông tin màn đang chọn ────────────────────────────────
+        sel = self.sel_level_idx
+        pw, ph = 420, 110
+        px = SCREEN_WIDTH // 2 - pw // 2
+        py = SCREEN_HEIGHT - ph - 28
+
+        # Nền panel glassmorphism
+        panel_bg = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        pygame.draw.rect(panel_bg, (10, 8, 30, 200), (0, 0, pw, ph), border_radius=18)
+        self.screen.blit(panel_bg, (px, py))
+        # Viền glow màu theo node
+        border_alpha = int(180 + 60 * math.sin(self.t * 4))
+        b_surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        pygame.draw.rect(b_surf, (*LEVEL_COLORS[sel], border_alpha),
+                         (0, 0, pw, ph), width=3, border_radius=18)
+        self.screen.blit(b_surf, (px, py))
+
+        # Tên màn
+        lname = LEVEL_NAMES[sel] if sel < len(LEVEL_NAMES) else f"Màn {sel+1}"
+        draw_text(self.screen, f"MÀN {sel+1}  —  {lname}",
+                  (SCREEN_WIDTH // 2, py + 30),
+                  size=26, color=LEVEL_COLORS[sel], bold=True, center=True)
+
+        # Trạng thái
+        status = "✔ ĐÃ HOÀN THÀNH" if sel < best else ("► CHƯA HOÀN THÀNH" if sel <= best else "🔒 CHƯA MỞ KHÓA")
+        stat_col = (80, 230, 80) if sel < best else ((255, 200, 50) if sel <= best else (150, 100, 100))
+        draw_text(self.screen, status, (SCREEN_WIDTH // 2, py + 60),
+                  size=20, color=stat_col, center=True)
+
+        # ── Hướng dẫn ──────────────────────────────────────────────────
+        draw_text(self.screen,
+                  "← → chọn màn    ENTER để chơi    ESC quay lại",
+                  (SCREEN_WIDTH // 2, py + 90),
+                  size=16, color=(130, 130, 170), center=True)
+
+        # ── ESC label góc trên ─────────────────────────────────────────
+        draw_text(self.screen, "ESC  quay lại  Menu", (22, 22), size=15, color=(100, 100, 140))
 
     # ==================================================================
     def draw_story(self):
@@ -2802,27 +3086,55 @@ class Game:
 
     def draw_waiting_room(self):
         """Cyberpunk-style waiting room: neon grid, vertical player cards, side panels."""
-        # === BACKGROUND: dark purple-black + neon grid ===
-        self.screen.fill((8, 6, 20))
-        # Animated neon grid lines
-        grid_color = (30, 20, 80)
-        grid_spacing = 60
-        offset_x = int(self.t * 20) % grid_spacing
-        offset_y = int(self.t * 10) % grid_spacing
-        for x in range(-grid_spacing + offset_x, SCREEN_WIDTH + grid_spacing, grid_spacing):
-            pygame.draw.line(self.screen, grid_color, (x, 0), (x, SCREEN_HEIGHT), 1)
-        for y in range(-grid_spacing + offset_y, SCREEN_HEIGHT + grid_spacing, grid_spacing):
-            pygame.draw.line(self.screen, grid_color, (0, y), (SCREEN_WIDTH, y), 1)
+        # === BACKGROUND: Video ===
+        drawn = False
+        if hasattr(self, 'waiting_room_video') and self.waiting_room_video is not None:
+            try:
+                import cv2
+                now = time.time()
+                if not hasattr(self, 'wr_video_last_update'):
+                    self.wr_video_last_update = 0.0
+                    self.wr_video_surface = None
+                
+                if now - self.wr_video_last_update >= self.wr_video_frame_time:
+                    ret, frame = self.waiting_room_video.read()
+                    if not ret:
+                        self.waiting_room_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = self.waiting_room_video.read()
+                    
+                    if ret:
+                        frame = cv2.resize(frame, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        self.wr_video_surface = pygame.image.frombuffer(frame.tobytes(), (SCREEN_WIDTH, SCREEN_HEIGHT), 'RGB')
+                        self.wr_video_last_update = now
+                
+                if self.wr_video_surface is not None:
+                    self.screen.blit(self.wr_video_surface, (0, 0))
+                    drawn = True
+            except Exception as e:
+                print(f"Error reading/drawing WR video frame: {e}")
 
-        # Floating neon orbs
-        for i in range(12):
-            ox = int(SCREEN_WIDTH * 0.5 + math.sin(self.t * 0.7 + i * 1.1) * 300)
-            oy = int(SCREEN_HEIGHT * 0.5 + math.cos(self.t * 0.5 + i * 0.9) * 200)
-            alpha = int(30 + 20 * math.sin(self.t * 2 + i))
-            orb_s = pygame.Surface((40, 40), pygame.SRCALPHA)
-            orb_col = [(180, 0, 255), (0, 200, 255), (255, 0, 150)][i % 3]
-            pygame.draw.circle(orb_s, (*orb_col, alpha), (20, 20), 20)
-            self.screen.blit(orb_s, (ox - 20, oy - 20))
+        if not drawn:
+            self.screen.fill((8, 6, 20))
+            # Animated neon grid lines
+            grid_color = (30, 20, 80)
+            grid_spacing = 60
+            offset_x = int(self.t * 20) % grid_spacing
+            offset_y = int(self.t * 10) % grid_spacing
+            for x in range(-grid_spacing + offset_x, SCREEN_WIDTH + grid_spacing, grid_spacing):
+                pygame.draw.line(self.screen, grid_color, (x, 0), (x, SCREEN_HEIGHT), 1)
+            for y in range(-grid_spacing + offset_y, SCREEN_HEIGHT + grid_spacing, grid_spacing):
+                pygame.draw.line(self.screen, grid_color, (0, y), (SCREEN_WIDTH, y), 1)
+    
+            # Floating neon orbs
+            for i in range(12):
+                ox = int(SCREEN_WIDTH * 0.5 + math.sin(self.t * 0.7 + i * 1.1) * 300)
+                oy = int(SCREEN_HEIGHT * 0.5 + math.cos(self.t * 0.5 + i * 0.9) * 200)
+                alpha = int(30 + 20 * math.sin(self.t * 2 + i))
+                orb_s = pygame.Surface((40, 40), pygame.SRCALPHA)
+                orb_col = [(180, 0, 255), (0, 200, 255), (255, 0, 150)][i % 3]
+                pygame.draw.circle(orb_s, (*orb_col, alpha), (20, 20), 20)
+                self.screen.blit(orb_s, (ox - 20, oy - 20))
 
         # === MODE & IP INFO ===
         mode_map = {"journey": "HANH TRINH CUU CHO", "boss_rush": "DAI CHIEN BOSS RUSH", "pvp": "DAU TRUONG PvP"}

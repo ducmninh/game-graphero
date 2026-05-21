@@ -227,12 +227,20 @@ def build_level1(world=None):
 
     # Enemies — spread out, ramping right-to-left, kept away from spawn
     enemies = []
-    # Area 1: 10 thieves
-    for i in range(10):
+    # Area 1: zombie hỗn hợp + thief phía đầu map
+    for i in range(6):
+        pos = _find_free_spawn_pos(world, 14 * TILE, 30 * TILE, 16 * TILE, 32 * TILE)
+        kind = "zombie_fast" if i % 2 == 0 else "zombie"
+        enemies.append(Enemy(kind, pos))
+    for i in range(4):
         pos = _find_free_spawn_pos(world, 14 * TILE, 36 * TILE, 16 * TILE, 32 * TILE)
         enemies.append(Enemy("thief_knife", pos))
-    # Area 2: 10 thieves
-    for i in range(10):
+    # Area 2: zombie + thief phía giữa-cuối map
+    for i in range(5):
+        pos = _find_free_spawn_pos(world, 48 * TILE, 72 * TILE, 16 * TILE, 32 * TILE)
+        kind = "zombie" if i % 3 != 0 else "zombie_fast"
+        enemies.append(Enemy(kind, pos))
+    for i in range(5):
         pos = _find_free_spawn_pos(world, 48 * TILE, 76 * TILE, 16 * TILE, 32 * TILE)
         enemies.append(Enemy("thief_knife", pos))
     # Mini-boss arena near exit
@@ -999,10 +1007,14 @@ def build_pvp_arena(world=None):
         
     # Some cover in the middle (containers, crates, etc.)
     for _ in range(12):
-        cx = random.randint(5, W-10)
-        cy = random.randint(5, H-10)
-        kind = random.choice(["container", "crate", "car"])
-        world.add_solid(Solid(pygame.Rect(cx*TILE, cy*TILE, TILE*2, TILE*2), kind))
+        for _attempt in range(50):
+            cx = random.randint(5, W-10)
+            cy = random.randint(5, H-10)
+            # Ensure cover does not overlap with the center spawn area (around W//2, H//2)
+            if abs(cx - W//2) > 2 or abs(cy - H//2) > 2:
+                kind = random.choice(["container", "crate", "car"])
+                world.add_solid(Solid(pygame.Rect(cx*TILE, cy*TILE, TILE*2, TILE*2), kind))
+                break
 
     # Explosive drums for extra chaos
     for _ in range(8):
